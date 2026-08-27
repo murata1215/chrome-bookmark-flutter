@@ -1,0 +1,45 @@
+name: chrome_bookmark_flutter
+description: "Chrome Bookmark Launcher"
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.11.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  cupertino_icons: ^1.0.8
+
+  # 状態管理（mimamori-flutter と揃える）
+  flutter_riverpod: ^2.6.1
+
+  # HTTP
+  dio: ^5.9.1
+
+  # ローカル保存
+  path_provider: ^2.1.5
+  shared_preferences: ^2.5.5
+  flutter_secure_storage: ^9.2.4
+
+  # ペアリング
+  mobile_scanner: ^7.3.0
+  device_info_plus: ^11.5.0
+  uuid: ^4.5.2
+
+  # 表示
+  cached_network_image: ^3.4.1
+
+  # 起動
+  url_launcher: ^6.3.2
+  android_intent_plus: ^6.1.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true

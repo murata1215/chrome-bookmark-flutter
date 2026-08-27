@@ -1,0 +1,204 @@
+{
+  "version": 1,
+  "half_life_ms": 2592000000,
+  "generated_by": "server/scripts/gen-frecency-vectors.ts",
+  "cases": [
+    {
+      "name": "first-open-no-existing-row",
+      "existing": null,
+      "now": "2026-08-26T00:00:00.000Z",
+      "events": [
+        {
+          "event_id": "77a90b95-ed3a-4547-b80c-7f75200c0731",
+          "url": "https://example.com/",
+          "opened_at": "2026-08-26T00:00:00.000Z"
+        }
+      ],
+      "expected": {
+        "url": "https://example.com/",
+        "open_count": 1,
+        "score": 1,
+        "score_at": "2026-08-26T00:00:00.000Z",
+        "last_opened_at": "2026-08-26T00:00:00.000Z",
+        "effective_at_now": 1
+      }
+    },
+    {
+      "name": "existing-newer-event",
+      "existing": {
+        "score": 1,
+        "score_at": "2026-07-27T00:00:00.000Z",
+        "open_count": 1
+      },
+      "now": "2026-08-26T00:00:00.000Z",
+      "events": [
+        {
+          "event_id": "eff89843-db22-477d-a5da-656e2f849ad8",
+          "url": "https://example.com/",
+          "opened_at": "2026-08-26T00:00:00.000Z"
+        }
+      ],
+      "expected": {
+        "url": "https://example.com/",
+        "open_count": 2,
+        "score": 1.5,
+        "score_at": "2026-08-26T00:00:00.000Z",
+        "last_opened_at": "2026-08-26T00:00:00.000Z",
+        "effective_at_now": 1.5
+      }
+    },
+    {
+      "name": "existing-older-event-score-at-held",
+      "existing": {
+        "score": 1,
+        "score_at": "2026-08-26T00:00:00.000Z",
+        "open_count": 1
+      },
+      "now": "2026-08-26T00:00:00.000Z",
+      "events": [
+        {
+          "event_id": "9375e7f1-1bdf-43ce-b37a-4298b58a6cdd",
+          "url": "https://example.com/",
+          "opened_at": "2026-07-27T00:00:00.000Z"
+        }
+      ],
+      "expected": {
+        "url": "https://example.com/",
+        "open_count": 2,
+        "score": 1.5,
+        "score_at": "2026-08-26T00:00:00.000Z",
+        "last_opened_at": "2026-08-26T00:00:00.000Z",
+        "effective_at_now": 1.5
+      }
+    },
+    {
+      "name": "batch-three-events",
+      "existing": null,
+      "now": "2026-08-26T00:00:00.000Z",
+      "events": [
+        {
+          "event_id": "450886d6-dd43-4397-ad18-b0b6b7a3743f",
+          "url": "https://example.com/",
+          "opened_at": "2026-08-16T00:00:00.000Z"
+        },
+        {
+          "event_id": "1fd34847-2e2e-42d8-a0ea-551c8640d564",
+          "url": "https://example.com/",
+          "opened_at": "2026-08-21T00:00:00.000Z"
+        },
+        {
+          "event_id": "2834fba3-97bb-450b-a00e-2d91b82a5396",
+          "url": "https://example.com/",
+          "opened_at": "2026-08-25T00:00:00.000Z"
+        }
+      ],
+      "expected": {
+        "url": "https://example.com/",
+        "open_count": 3,
+        "score": 2.7239748849144525,
+        "score_at": "2026-08-25T00:00:00.000Z",
+        "last_opened_at": "2026-08-25T00:00:00.000Z",
+        "effective_at_now": 2.661759212558685
+      }
+    },
+    {
+      "name": "batch-three-events-permuted",
+      "existing": null,
+      "now": "2026-08-26T00:00:00.000Z",
+      "events": [
+        {
+          "event_id": "ed51048a-e5a9-4f35-955f-f68116f21095",
+          "url": "https://example.com/",
+          "opened_at": "2026-08-25T00:00:00.000Z"
+        },
+        {
+          "event_id": "9d792aab-da8f-4316-a2cd-c6513a37a354",
+          "url": "https://example.com/",
+          "opened_at": "2026-08-16T00:00:00.000Z"
+        },
+        {
+          "event_id": "8978ebc7-7bf3-42ce-8338-bbae295241fd",
+          "url": "https://example.com/",
+          "opened_at": "2026-08-21T00:00:00.000Z"
+        }
+      ],
+      "expected": {
+        "url": "https://example.com/",
+        "open_count": 3,
+        "score": 2.7239748849144525,
+        "score_at": "2026-08-25T00:00:00.000Z",
+        "last_opened_at": "2026-08-25T00:00:00.000Z",
+        "effective_at_now": 2.661759212558685
+      }
+    },
+    {
+      "name": "exactly-one-half-life",
+      "existing": {
+        "score": 1,
+        "score_at": "2026-07-27T00:00:00.000Z",
+        "open_count": 1
+      },
+      "now": "2026-08-26T00:00:00.000Z",
+      "events": [
+        {
+          "event_id": "328f22d3-f651-44af-b48e-13ed9eccc165",
+          "url": "https://example.com/",
+          "opened_at": "2026-07-27T00:00:00.001Z"
+        }
+      ],
+      "expected": {
+        "url": "https://example.com/",
+        "open_count": 2,
+        "score": 1.9999999997325821,
+        "score_at": "2026-07-27T00:00:00.001Z",
+        "last_opened_at": "2026-07-27T00:00:00.001Z",
+        "effective_at_now": 1.0000000001337088
+      }
+    },
+    {
+      "name": "future-opened-at-clamped",
+      "existing": null,
+      "now": "2026-08-26T00:00:00.000Z",
+      "events": [
+        {
+          "event_id": "8cb3ea02-7a7b-4670-a4f9-8a1f8c6e7adf",
+          "url": "https://example.com/",
+          "opened_at": "2026-08-26T00:10:00.000Z"
+        }
+      ],
+      "expected": {
+        "url": "https://example.com/",
+        "open_count": 1,
+        "score": 1,
+        "score_at": "2026-08-26T00:00:00.000Z",
+        "last_opened_at": "2026-08-26T00:00:00.000Z",
+        "effective_at_now": 1
+      }
+    },
+    {
+      "name": "star-only-row-null-score-at",
+      "existing": {
+        "score": 0,
+        "score_at": null,
+        "open_count": 0
+      },
+      "now": "2026-08-26T00:00:00.000Z",
+      "events": [
+        {
+          "event_id": "560cc00f-56d6-422d-a722-60195b29fe11",
+          "url": "https://example.com/",
+          "opened_at": "2026-08-23T00:00:00.000Z"
+        }
+      ],
+      "expected": {
+        "url": "https://example.com/",
+        "open_count": 1,
+        "score": 1,
+        "score_at": "2026-08-23T00:00:00.000Z",
+        "last_opened_at": "2026-08-23T00:00:00.000Z",
+        "effective_at_now": 0.9330329915368074
+      }
+    }
+  ]
+}
+
