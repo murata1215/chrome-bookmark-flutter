@@ -33,4 +33,7 @@ class AppConfig {
   /// トレードオフ・設定画面でいつでも OFF に戻せる）。ユーザー要望によりカラー
   /// favicon 表示を優先し既定 ON。
   static const bool faviconEnabledDefault = true;
+
+  /// 表示用バージョン文字列（pubspec.yaml の `version:` と手動で同期させる）。
+  static const String displayVersion = '1.0.0';
 }

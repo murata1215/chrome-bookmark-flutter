@@ -13,14 +13,16 @@ class ChromeBookmarkApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final auth = ref.watch(authProvider);
+    final themeMode = ref.watch(themeModeProvider);
     // ルートで1回だけ生成・購読する（Provider は ProviderContainer の生存期間
     // ずっとキャッシュされるので、build が再実行されても再生成されない）。
     ref.watch(lifecycleSyncProvider);
     return MaterialApp(
-      title: 'Chrome Bookmark Launcher',
+      title: 'ブックマークランチャー',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light(),
       darkTheme: AppTheme.dark(),
+      themeMode: themeMode,
       home: auth.isPaired ? const HomeShell() : const PairingScreen(),
     );
   }

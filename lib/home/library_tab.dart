@@ -35,33 +35,35 @@ class _CategoryPage extends ConsumerWidget {
     final snapshot = ref.watch(snapshotProvider).snapshot;
     final scheme = Theme.of(context).colorScheme;
 
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-      children: [
-        for (final key in kRootKeys) ...[
-          _RootCard(
-            rootKey: key,
-            count: snapshot?.roots[key]?.children.length,
-            color: scheme.surfaceContainerHighest,
-          ),
-          const SizedBox(height: 10),
-        ],
-        const SizedBox(height: 8),
-        Card(
-          clipBehavior: Clip.antiAlias,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          child: ListTile(
-            leading: const Icon(Icons.settings_outlined),
-            title: const Text('設定'),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const SettingsScreen()),
+    return RefreshIndicator(
+      onRefresh: () => ref.read(syncServiceProvider).syncNow(force: true),
+      child: ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+        children: [
+          for (final key in kRootKeys) ...[
+            _RootCard(
+              rootKey: key,
+              count: snapshot?.roots[key]?.children.length,
+              color: scheme.surfaceContainerHighest,
+            ),
+            const SizedBox(height: 10),
+          ],
+          const SizedBox(height: 8),
+          Card(
+            child: ListTile(
+              leading: const Icon(Icons.settings_outlined),
+              title: const Text('設定'),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const SettingsScreen()),
+              ),
             ),
           ),
-        ),
-        const SizedBox(height: 16),
-        const _SyncFooter(),
-      ],
+          const SizedBox(height: 16),
+          const _SyncFooter(),
+        ],
+      ),
     );
   }
 }

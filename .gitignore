@@ -50,3 +50,7 @@ app.*.map.json
 .devrelay-output/
 .devrelay-output-history/
 rules/
+
+# ペアリング手順ガイド画像の元スクショ（未加工・識別子等を含みうるため除外）。
+# `tool/gen_guide_images.py` の出力（assets/guide/）はコミット対象。
+/tool/guide_raw/

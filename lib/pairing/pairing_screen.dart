@@ -7,6 +7,7 @@ import '../core/api/mock_api_client.dart';
 import '../core/device_name.dart';
 import '../core/providers.dart';
 import 'pairing_controller.dart';
+import 'pairing_guide_screen.dart';
 import 'pairing_scan_screen.dart';
 
 /// ペアリング画面（§6.3 本実装: QR / 8桁コード入力）。
@@ -59,6 +60,7 @@ class _PairingScreenState extends ConsumerState<PairingScreen> {
   @override
   Widget build(BuildContext context) {
     final uiState = ref.watch(pairingControllerProvider);
+    final scheme = Theme.of(context).colorScheme;
 
     return Scaffold(
       appBar: AppBar(title: const Text('ペアリング')),
@@ -68,13 +70,42 @@ class _PairingScreenState extends ConsumerState<PairingScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const Icon(Icons.link, size: 48),
-              const SizedBox(height: 16),
+              Center(
+                child: Container(
+                  width: 88,
+                  height: 88,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [scheme.primary, scheme.primaryContainer],
+                    ),
+                    borderRadius: BorderRadius.circular(24),
+                  ),
+                  child: Icon(Icons.bookmark_rounded, size: 40, color: scheme.onPrimary),
+                ),
+              ),
+              const SizedBox(height: 24),
+              Text(
+                'Chrome のブックマークを手元に',
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+              const SizedBox(height: 8),
               const Text(
                 'Chrome 拡張機能に表示された8桁のコードを入力するか、\nQRコードを読み取ってください。',
                 textAlign: TextAlign.center,
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 4),
+              TextButton.icon(
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const PairingGuideScreen()),
+                ),
+                icon: const Icon(Icons.help_outline, size: 18),
+                label: const Text('ペアリングのやり方を見る'),
+              ),
+              const SizedBox(height: 16),
               TextField(
                 controller: _codeController,
                 keyboardType: TextInputType.number,

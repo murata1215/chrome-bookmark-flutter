@@ -55,8 +55,12 @@ class HttpApiClient implements ApiClient {
     final isJson = contentType.toLowerCase().contains('application/json');
 
     if (status >= 200 && status < 300) {
-      if (!isJson) {
-        // §0-4: 200 だが Content-Type が text/html（Caddy の placeholder）＝サーバー障害。
+      // §0-4: 200 だが Content-Type が text/html（Caddy の placeholder）＝サーバー障害。
+      // **`status == 200` の時だけ**チェックする。`204 No Content`（例:
+      // `revokeDevice`）はボディが無いので Content-Type も付かないのが正常であり、
+      // 全 2xx に広げると実際に成功した 204 応答まで誤って弾いてしまうため
+      // （`ApiException.isServerPlaceholder` 自体も `statusCode == 200` 限定）。
+      if (status == 200 && !isJson) {
         throw ApiException(
           code: 'server_placeholder',
           message: 'サーバーに接続できません',
@@ -171,5 +175,10 @@ class HttpApiClient implements ApiClient {
           data: {'name': name},
           options: _auth(deviceToken),
         ));
+  }
+
+  @override
+  Future<void> revokeDevice({required String deviceToken}) async {
+    await _guard(() => _dio.delete('/device', options: _auth(deviceToken)));
   }
 }

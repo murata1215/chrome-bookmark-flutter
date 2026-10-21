@@ -5,12 +5,39 @@ import '../core/models/folder_path.dart';
 import '../core/models/mark.dart';
 import '../core/providers.dart';
 import '../core/search/search_index.dart';
+import '../core/sync/sync_service.dart';
 
 /// 検索クエリ文字列。些末な UI 状態なので `StateProvider` のまま（§設計方針）。
 final searchQueryProvider = StateProvider<String>((ref) => '');
 
 /// 検索結果の表示上限（§7・§9「表示上限200行」）。
 const int kSearchResultLimit = 200;
+
+// --- ホームの選択中タブ（§6.3）。Notifier にして EmptyState の CTA 等、
+// 画面外からもタブ切替を要求できるようにする（HomeShell のローカル State だと
+// それができない）。 ---
+
+class HomeTabIndexNotifier extends Notifier<int> {
+  @override
+  int build() => ref.read(prefsProvider).lastTabIndex ?? 1;
+
+  void select(int i) {
+    state = i;
+    ref.read(prefsProvider).setLastTabIndex(i);
+  }
+}
+
+final homeTabIndexProvider = NotifierProvider<HomeTabIndexNotifier, int>(HomeTabIndexNotifier.new);
+
+/// 「まだ一度も同期が通っていない」= 初回ロード中とみなす。
+/// ツリータブの「読み込み中」と「空」の判別に使う（以前は 1 つの EmptyState に
+/// 混在していた）。
+final isInitialLoadingProvider = Provider<bool>((ref) {
+  final hasSnapshot = ref.watch(snapshotProvider).snapshot != null;
+  if (hasSnapshot) return false;
+  final neverSynced = ref.watch(prefsProvider).lastSyncAt == null;
+  return neverSynced || ref.watch(syncStatusProvider).isSyncing;
+});
 
 // --- ライブラリタブ: 現在のフォルダ位置（§6.3「再起動時に前回位置へ復帰」） ---
 // null = カテゴリ一覧（3ルート選択ページ）、非 null = ツリー表示中。

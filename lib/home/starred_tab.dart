@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/providers.dart';
+import '../core/sync/sync_service.dart';
 import '../core/time_format.dart';
 import '../widgets/bookmark_row.dart';
 import '../widgets/empty_state.dart';
@@ -17,25 +18,39 @@ class StarredTab extends ConsumerWidget {
     final snapshotUrls = ref.watch(snapshotUrlSetProvider);
     final titles = ref.watch(snapshotTitleByUrlProvider);
 
-    if (list.isEmpty) {
-      return const EmptyState(
-        icon: Icons.star_border,
-        message: 'まだお気に入りがありません',
-      );
-    }
-
-    return ListView.builder(
-      itemExtent: 48,
-      itemCount: list.length,
-      itemBuilder: (context, i) {
-        final mark = list[i];
-        return BookmarkRow(
-          url: mark.url,
-          title: titles[mark.url] ?? mark.title ?? '',
-          inSnapshot: snapshotUrls.contains(mark.url),
-          trailingMeta: mark.starredAt != null ? relativeJa(mark.starredAt!) : null,
-        );
-      },
+    return RefreshIndicator(
+      onRefresh: () => ref.read(syncServiceProvider).syncNow(force: true),
+      child: list.isEmpty
+          ? LayoutBuilder(
+              builder: (context, constraints) => SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                  child: EmptyState(
+                    icon: Icons.star_border,
+                    headline: 'まだお気に入りがありません',
+                    message: '一覧の ☆ をタップすると、ここにまとまります',
+                    actionLabel: 'ブックマークを見る',
+                    onAction: () => ref.read(homeTabIndexProvider.notifier).select(0),
+                  ),
+                ),
+              ),
+            )
+          : ListView.builder(
+              key: const PageStorageKey('starred'),
+              physics: const AlwaysScrollableScrollPhysics(),
+              prototypeItem: const BookmarkRow(url: 'https://example.com', title: 'プロトタイプ'),
+              itemCount: list.length,
+              itemBuilder: (context, i) {
+                final mark = list[i];
+                return BookmarkRow(
+                  url: mark.url,
+                  title: titles[mark.url] ?? mark.title ?? '',
+                  inSnapshot: snapshotUrls.contains(mark.url),
+                  trailingMeta: mark.starredAt != null ? relativeJa(mark.starredAt!) : null,
+                );
+              },
+            ),
     );
   }
 }

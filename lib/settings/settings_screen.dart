@@ -29,6 +29,7 @@ class SettingsScreen extends ConsumerStatefulWidget {
 class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   DeviceInfoResultState _deviceState = const DeviceInfoResultState.loading();
   bool _syncing = false;
+  bool _unpairing = false;
 
   @override
   void initState() {
@@ -114,7 +115,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('ペアリングを解除しますか？'),
-        content: const Text('この端末に保存されたブックマークデータ・履歴は全て削除されます。'),
+        content: const Text(
+          'この端末に保存されたブックマークデータ・履歴は全て削除され、'
+          'PC の Chrome 拡張機能からもこの端末の接続が切断されます。',
+        ),
         actions: [
           TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('キャンセル')),
           FilledButton(
@@ -126,9 +130,63 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       ),
     );
     if (confirmed != true) return;
-    await ref.read(authProvider.notifier).wipeAndUnpair();
+
+    setState(() => _unpairing = true);
+    final outcome = await ref.read(authProvider.notifier).unpairWithRevoke();
     if (!mounted) return;
-    Navigator.of(context).popUntil((route) => route.isFirst);
+
+    switch (outcome) {
+      case UnpairOutcome.revoked:
+      case UnpairOutcome.alreadyRevoked:
+        Navigator.of(context).popUntil((route) => route.isFirst);
+        return;
+
+      case UnpairOutcome.serverNotDeployed:
+        // ローカルは既に消去済み。ポップすると画面が破棄されるので、
+        // SnackBar ではなく先にダイアログで案内してから戻る。
+        await showDialog<void>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('この端末の設定を削除しました'),
+            content: const Text(
+              '現在サーバー側の接続解除には対応していないため、'
+              'PC の Chrome 拡張機能からも「切断」を行ってください。',
+            ),
+            actions: [
+              FilledButton(onPressed: () => Navigator.of(context).pop(), child: const Text('OK')),
+            ],
+          ),
+        );
+        if (!mounted) return;
+        Navigator.of(context).popUntil((route) => route.isFirst);
+        return;
+
+      case UnpairOutcome.failed:
+        setState(() => _unpairing = false);
+        final localOnly = await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('サーバーに接続できませんでした'),
+            content: const Text(
+              'この端末のデータだけ削除しますか？\n'
+              'PC 側の接続は残ります。後でオンライン時に改めて解除することをおすすめします。',
+            ),
+            actions: [
+              TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('キャンセル')),
+              FilledButton(
+                style: FilledButton.styleFrom(backgroundColor: Theme.of(context).colorScheme.error),
+                onPressed: () => Navigator.of(context).pop(true),
+                child: const Text('この端末だけ削除'),
+              ),
+            ],
+          ),
+        );
+        if (localOnly != true) return;
+        await ref.read(authProvider.notifier).wipeAndUnpair();
+        if (!mounted) return;
+        Navigator.of(context).popUntil((route) => route.isFirst);
+        return;
+    }
   }
 
   @override
@@ -182,6 +240,34 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               if (mounted) setState(() {});
             },
           ),
+          const Divider(),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
+                  children: [
+                    const Icon(Icons.brightness_6_outlined),
+                    const SizedBox(width: 16),
+                    const Text('表示モード'),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                SegmentedButton<ThemeMode>(
+                  segments: const [
+                    ButtonSegment(value: ThemeMode.system, label: Text('システム')),
+                    ButtonSegment(value: ThemeMode.light, label: Text('ライト')),
+                    ButtonSegment(value: ThemeMode.dark, label: Text('ダーク')),
+                  ],
+                  selected: {ref.watch(themeModeProvider)},
+                  onSelectionChanged: (selection) =>
+                      ref.read(themeModeProvider.notifier).select(selection.first),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 8),
           if (kDebugMode && AppConfig.isMockActive) ...[
             const Divider(),
             const Padding(
@@ -194,7 +280,30 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ListTile(
             leading: Icon(Icons.link_off, color: Theme.of(context).colorScheme.error),
             title: Text('ペアリングを解除', style: TextStyle(color: Theme.of(context).colorScheme.error)),
-            onTap: _confirmUnpair,
+            trailing: _unpairing
+                ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                : null,
+            onTap: _unpairing ? null : _confirmUnpair,
+          ),
+          const Divider(),
+          ListTile(
+            leading: const Icon(Icons.description_outlined),
+            title: const Text('オープンソースライセンス'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => showLicensePage(
+              context: context,
+              applicationName: 'ブックマークランチャー',
+              applicationVersion: AppConfig.displayVersion,
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+            child: Text(
+              'バージョン ${AppConfig.displayVersion}',
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: Theme.of(context).colorScheme.outline),
+            ),
           ),
         ],
       ),

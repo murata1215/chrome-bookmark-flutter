@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:flutter/material.dart' show ThemeMode;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'api/api_client.dart';
@@ -34,6 +35,19 @@ final prefsProvider = Provider<AppPrefs>((ref) {
 
 final tokenStoreProvider = Provider<TokenStore>((ref) => TokenStore());
 
+/// ライト/ダーク/システムの表示モード。設定画面の `SegmentedButton` から変更する。
+class ThemeModeNotifier extends Notifier<ThemeMode> {
+  @override
+  ThemeMode build() => ThemeMode.values[ref.read(prefsProvider).themeModeIndex];
+
+  void select(ThemeMode mode) {
+    state = mode;
+    ref.read(prefsProvider).setThemeModeIndex(mode.index);
+  }
+}
+
+final themeModeProvider = NotifierProvider<ThemeModeNotifier, ThemeMode>(ThemeModeNotifier.new);
+
 final localStoreProvider = Provider<LocalStore>((ref) => LocalStore(ref.watch(appDirectoryProvider)));
 
 /// Chrome 起動（§6.5）。Android の解決結果をセッション内でキャッシュするため、
@@ -54,6 +68,24 @@ final apiClientProvider = Provider<ApiClient>((ref) {
 // --- 認証状態（§8） ---
 
 enum AuthStatus { paired, unauthenticated }
+
+/// [AuthNotifier.unpairWithRevoke] の結果。設定画面がユーザーへの通知文言を
+/// 出し分けるために使う。
+enum UnpairOutcome {
+  /// サーバー側で device_token を失効できた（ローカルも消去済み）。
+  revoked,
+
+  /// 401（既に失効済み・冪等）。実質成功として扱う（ローカルは消去済み）。
+  alreadyRevoked,
+
+  /// 404（`DELETE /device` がサーバー未デプロイ）。ローカルは消去したが、
+  /// PC 側（拡張機能）の接続は残ったままの可能性がある。
+  serverNotDeployed,
+
+  /// 通信失敗・timeout・5xx 等。ローカルは**消去していない**
+  /// （呼び出し側がユーザーに確認の上、必要ならローカルのみ `wipeAndUnpair()` を呼ぶ）。
+  failed,
+}
 
 class AuthState {
   final AuthStatus status;
@@ -86,6 +118,11 @@ class AuthNotifier extends Notifier<AuthState> {
   }
 
   /// 終端401（§0-4・§8 の3条件 AND）を受けたときの全消去。
+  ///
+  /// **サーバー通信は一切行わない。** 呼び出し元の token が既にサーバー側で
+  /// 無効と判定された後の後始末専用（`sync_service.dart` の終端401ハンドラ）。
+  /// ユーザーの「ペアリングを解除」操作からは [unpairWithRevoke] を使うこと
+  /// （こちらを直接呼ぶと device_token がサーバーに残ったままになる）。
   Future<void> wipeAndUnpair() async {
     await ref.read(tokenStoreProvider).clear();
     await ref.read(localStoreProvider).clearAll();
@@ -94,6 +131,42 @@ class AuthNotifier extends Notifier<AuthState> {
     ref.read(pendingProvider.notifier).setAll(PendingQueue.empty);
     ref.read(snapshotProvider.notifier).setAll(null, const []);
     state = const AuthState.unauthenticated();
+  }
+
+  /// ユーザー操作（設定画面「ペアリングを解除」）用。`DELETE /device` で
+  /// サーバー側の device_token を先に失効させてから、ローカルを消去する。
+  ///
+  /// 通信に失敗した場合（[UnpairOutcome.failed]）は**ローカルを消さない**。
+  /// 呼び出し側（設定画面）がユーザーに確認を取り、それでもローカルだけ消したい
+  /// 場合は [wipeAndUnpair] を直接呼ぶこと（オフラインで詰ませないための設計・
+  /// 追補4 §失敗時の扱い）。
+  Future<UnpairOutcome> unpairWithRevoke() async {
+    final token = state.deviceToken;
+    if (token == null) {
+      await wipeAndUnpair();
+      return UnpairOutcome.revoked;
+    }
+    try {
+      await ref.read(apiClientProvider).revokeDevice(deviceToken: token);
+      await wipeAndUnpair();
+      return UnpairOutcome.revoked;
+    } on ApiException catch (e) {
+      if (e.statusCode == 401) {
+        // 既に失効済み（冪等）。実質成功として扱う。
+        await wipeAndUnpair();
+        return UnpairOutcome.alreadyRevoked;
+      }
+      if (e.statusCode == 404) {
+        // DELETE /device がサーバー未デプロイ。ローカルだけ消し、
+        // PC 側の接続が残りうる旨は呼び出し側（UI）で伝える。
+        await wipeAndUnpair();
+        return UnpairOutcome.serverNotDeployed;
+      }
+      // network_error / timeout / server_error / rate_limited 等。
+      return UnpairOutcome.failed;
+    } catch (_) {
+      return UnpairOutcome.failed;
+    }
   }
 }
 

@@ -263,6 +263,17 @@ class MockApiClient implements ApiClient {
     }
     _devices[deviceToken]!.name = name;
   }
+
+  @override
+  Future<void> revokeDevice({required String deviceToken}) async {
+    await _wait();
+    _throwIfFault();
+    // 冪等: 実サーバーと同じく、既に失効済み（＝存在しない）token は 401 として扱う
+    // （_requireAuth が投げる）。これにより呼び出し側の「401 も成功扱い」の分岐を
+    // モックでも検証できる。
+    _requireAuth(deviceToken);
+    _devices.remove(deviceToken);
+  }
 }
 
 class _DeviceRecord {

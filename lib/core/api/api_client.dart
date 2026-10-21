@@ -83,4 +83,9 @@ abstract class ApiClient {
 
   /// PATCH /device（未デプロイの間は 404）。name は最大100文字。
   Future<void> patchDevice({required String deviceToken, required String name});
+
+  /// DELETE /device（§ペアリング解除。この device_token のみを失効させる。
+  /// 未デプロイの間は 404。冪等なので既に失効済みなら 401 が返る想定で、
+  /// 呼び出し側 [AuthNotifier.unpairWithRevoke] はどちらも成功として扱う）。
+  Future<void> revokeDevice({required String deviceToken});
 }

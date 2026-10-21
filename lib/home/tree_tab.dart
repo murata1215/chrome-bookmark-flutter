@@ -4,10 +4,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/models/bookmark_node.dart';
 import '../core/models/bookmark_snapshot.dart';
 import '../core/models/folder_path.dart';
+import '../core/sync/sync_service.dart';
+import '../widgets/app_snack.dart';
 import '../widgets/bookmark_row.dart';
 import '../widgets/breadcrumb_bar.dart';
 import '../widgets/empty_state.dart';
 import '../widgets/folder_row.dart';
+import '../widgets/skeleton.dart';
 import 'home_providers.dart';
 
 /// ツリータブ（§6.3）。ライブラリのカテゴリページからルートを選んだ後の
@@ -27,9 +30,18 @@ class TreeTab extends ConsumerWidget {
     }
 
     if (resolved == null) {
-      return const EmptyState(
+      // 「読み込み中」と「本当にブックマークが無い」を区別する（以前は 1 つの
+      // EmptyState に混在していた）。
+      final loading = ref.watch(isInitialLoadingProvider);
+      if (loading) {
+        return const SkeletonList();
+      }
+      return EmptyState(
         icon: Icons.folder_off_outlined,
-        message: '読み込み中、またはブックマークがまだありません',
+        headline: 'ブックマークがまだありません',
+        message: 'Chrome 拡張でブックマークを同期してください',
+        actionLabel: '今すぐ同期',
+        onAction: () => ref.read(syncServiceProvider).syncNow(force: true),
       );
     }
 
@@ -39,9 +51,7 @@ class TreeTab extends ConsumerWidget {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!context.mounted) return;
         ref.read(currentFolderProvider.notifier).goTo(resolved.path);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('フォルダの構成が変わったため、上の階層に戻りました')),
-        );
+        showAppSnack(context, 'フォルダの構成が変わったため、上の階層に戻りました');
       });
     }
 
@@ -78,26 +88,42 @@ class TreeTab extends ConsumerWidget {
         ),
         const Divider(height: 1),
         Expanded(
-          child: children.isEmpty
-              ? const EmptyState(icon: Icons.folder_open, message: '空のフォルダです')
-              : ListView.builder(
-                  itemExtent: 48,
-                  itemCount: children.length,
-                  itemBuilder: (context, i) {
-                    final node = children[i];
-                    if (node is BookmarkFolder) {
-                      return FolderRow(
-                        title: node.title,
-                        itemCount: node.children.length,
-                        onTap: () => ref
-                            .read(currentFolderProvider.notifier)
-                            .enter(segmentForChild(resolved.folder, i)),
-                      );
-                    }
-                    final url = node as BookmarkUrl;
-                    return BookmarkRow(url: url.url, title: url.title);
-                  },
-                ),
+          child: RefreshIndicator(
+            onRefresh: () => ref.read(syncServiceProvider).syncNow(force: true),
+            child: children.isEmpty
+                ? LayoutBuilder(
+                    builder: (context, constraints) => SingleChildScrollView(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      child: ConstrainedBox(
+                        constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                        child: const EmptyState(
+                          icon: Icons.folder_open,
+                          message: '空のフォルダです',
+                          compact: true,
+                        ),
+                      ),
+                    ),
+                  )
+                : ListView.builder(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    prototypeItem: const BookmarkRow(url: 'https://example.com', title: 'プロトタイプ'),
+                    itemCount: children.length,
+                    itemBuilder: (context, i) {
+                      final node = children[i];
+                      if (node is BookmarkFolder) {
+                        return FolderRow(
+                          title: node.title,
+                          itemCount: node.children.length,
+                          onTap: () => ref
+                              .read(currentFolderProvider.notifier)
+                              .enter(segmentForChild(resolved.folder, i)),
+                        );
+                      }
+                      final url = node as BookmarkUrl;
+                      return BookmarkRow(url: url.url, title: url.title);
+                    },
+                  ),
+          ),
         ),
       ],
     );

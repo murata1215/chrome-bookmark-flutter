@@ -23,6 +23,7 @@ class AppPrefs {
   static const _kDeviceName = 'device_name';
   static const _kEmail = 'email';
   static const _kFaviconEnabled = 'favicon_enabled';
+  static const _kThemeMode = 'theme_mode';
 
   // --- ホーム画面: 前回のタブ・フォルダ位置（§6.3「再起動時に前回位置へ復帰」） ---
 
@@ -115,6 +116,11 @@ class AppPrefs {
 
   bool get faviconEnabled => _prefs.getBool(_kFaviconEnabled) ?? AppConfig.faviconEnabledDefault;
   Future<void> setFaviconEnabled(bool enabled) => _prefs.setBool(_kFaviconEnabled, enabled);
+
+  // --- テーマモード（0 = system, 1 = light, 2 = dark。既定 system） ---
+
+  int get themeModeIndex => _prefs.getInt(_kThemeMode) ?? 0;
+  Future<void> setThemeModeIndex(int index) => _prefs.setInt(_kThemeMode, index);
 
   // --- unpair 時の全消去 ---
 
